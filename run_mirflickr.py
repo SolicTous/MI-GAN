@@ -1,6 +1,7 @@
 import subprocess
 import sys
 import os
+os.environ["USE_LIBUV"] = "0"
 
 def run_training(phase):
     """Запуск обучения для указанной фазы (comodgan или migan)"""
