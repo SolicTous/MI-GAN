@@ -54,3 +54,33 @@ places2_val512_inpainting:
       random_flip: false
       resolution: 512
       hole_range: [0.0, 1.0]
+
+mirflickr:
+  symbol: mirflickr
+  type: places2
+  super_cfg: null
+
+  root_dir: E:/mirflickr
+
+mirflickr_train512_inpainting:
+  super_cfg: mirflickr
+  mode: train512
+  loader: 
+    - type: DefaultLoader
+      args: {}
+  formatter: 
+    type: FreeFormMaskFormatter
+    args: 
+      random_flip: true
+      resolution: 512
+      hole_range: [0.0, 1.0]
+
+mirflickr_val512_inpainting:
+  super_cfg: mirflickr_train512_inpainting
+  mode: val512
+  formatter: 
+    type: FreeFormMaskFormatter
+    args: 
+      random_flip: false
+      resolution: 512
+      hole_range: [0.0, 1.0]
