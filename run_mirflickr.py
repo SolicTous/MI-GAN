@@ -2,10 +2,13 @@
 Запуск обучения на датасете mirflickr в два этапа:
 1. ComodGAN
 2. MI-GAN
-
 Использует gloo бэкенд (работает на Windows) и однопоточный режим для 1 GPU.
 """
+import os
+os.environ["USE_LIBUV"] = "0"
 
+import subprocess
+import sys
 import torch
 import numpy as np
 import timeit
