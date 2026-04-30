@@ -45,17 +45,26 @@ class DistributedSampler(torch.utils.data.Sampler):
         self.num_replicas = num_replicas
         self.rank = rank
 
-        num_samples = len(dataset) // num_replicas
-        if extend:
-            if len(dataset) != num_samples*num_replicas:
-                num_samples += 1
+        # Обработка случая когда датасет пустой или очень маленький
+        dataset_len = len(dataset)
+        if dataset_len == 0:
+            num_samples = 0
+            total_size = 0
+        else:
+            num_samples = dataset_len // num_replicas
+            if extend:
+                if dataset_len != num_samples*num_replicas:
+                    num_samples += 1
+            total_size = num_samples * num_replicas
 
         self.num_samples = num_samples
-        self.total_size = num_samples * num_replicas
+        self.total_size = total_size
         self.shuffle = shuffle
         self.extend = extend
 
     def __iter__(self):
+        if len(self.dataset) == 0:
+            return iter([])
         indices = self.get_sync_order()
         if self.extend:
             # extend using the front indices
@@ -75,10 +84,16 @@ class DistributedSampler(torch.utils.data.Sampler):
         pass
 
     def get_sync_order(self):
+        if len(self.dataset) == 0:
+            return []
         if self.shuffle:
-            indices = torch.randperm(len(self.dataset)).to(self.rank)
-            dist.broadcast(indices, src=0)
-            indices = indices.to('cpu').tolist()
+            indices = torch.randperm(len(self.dataset))
+            # Для single GPU (world_size=1) broadcast не нужен, но безопасен
+            if dist.get_world_size() > 1:
+                indices = indices.to(self.rank)
+                dist.broadcast(indices, src=0)
+                indices = indices.to('cpu')
+            indices = indices.tolist()
         else:
             indices = list(range(len(self.dataset)))
         print_log(str(indices[0:5]))
