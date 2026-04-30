@@ -201,6 +201,9 @@ class dataset_cfg_bank(object):
         elif name.find('celeba')==0:
             return osp.join(
                 self.cfg_dir, 'celeba.yaml')
+        elif name.find('mirflickr')==0:
+            return osp.join(
+                self.cfg_dir, 'places2.yaml')
         else:
             raise ValueError
 
