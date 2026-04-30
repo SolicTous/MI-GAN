@@ -34,22 +34,26 @@ class SingleProcessExecutor(exec_container):
 
         # Инициализация распределенного обучения с gloo бэкендом
         import torch.distributed as dist
-        if cfg.env.gpu_count > 1:
-            dist.init_process_group(
-                backend=cfg.env.dist_backend,
-                init_method=cfg.env.dist_url,
-                rank=RANK,
-                world_size=cfg.env.gpu_count,
-            )
-        else:
-            # Для одной GPU инициализируем процесс группу с world_size=1
-            # Используем TCP init_method для надёжности
-            dist.init_process_group(
-                backend=cfg.env.dist_backend,
-                init_method='tcp://127.0.0.1:29500',
-                rank=0,
-                world_size=1,
-            )
+        
+        # Всегда инициализируем процесс группу, даже для одной GPU
+        # Это необходимо для работы DistributedSampler
+        if not dist.is_initialized():
+            if cfg.env.gpu_count > 1:
+                dist.init_process_group(
+                    backend=cfg.env.dist_backend,
+                    init_method=cfg.env.dist_url,
+                    rank=RANK,
+                    world_size=cfg.env.gpu_count,
+                )
+            else:
+                # Для одной GPU инициализируем процесс группу с world_size=1
+                # Используем TCP init_method для надёжности
+                dist.init_process_group(
+                    backend=cfg.env.dist_backend,
+                    init_method='tcp://127.0.0.1:29500',
+                    rank=0,
+                    world_size=1,
+                )
 
         # Установка random seed
         if isinstance(cfg.env.rnd_seed, int):
