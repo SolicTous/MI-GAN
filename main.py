@@ -24,7 +24,11 @@ if __name__ == "__main__":
         tstage = get_experiment(cfg.train.exec_stage)()
         trainer.register_stage(tstage)
 
-        mp.spawn(trainer, args=(), nprocs=cfg.env.gpu_count, join=True)
+        if cfg.env.gpu_count == 1:
+            # Запуск без multiprocessing для одной GPU
+            trainer(0)
+        else:
+            mp.spawn(trainer, args=(), nprocs=cfg.env.gpu_count, join=True)
     else:
         evaler = exec_container(cfg)
         estage = get_experiment(cfg.eval.exec_stage)()
@@ -32,4 +36,7 @@ if __name__ == "__main__":
         if cfg.env.debug:
             evaler(0)
         else:
-            mp.spawn(evaler, args=(), nprocs=cfg.env.gpu_count, join=True)
+            if cfg.env.gpu_count == 1:
+                evaler(0)
+            else:
+                mp.spawn(evaler, args=(), nprocs=cfg.env.gpu_count, join=True)
