@@ -37,13 +37,14 @@ class exec_container(object):
         cfg = self.cfg
         cfguh().save_cfg(cfg)
 
-        # broadcast cfg
-        dist.init_process_group(
-            backend=cfg.env.dist_backend,
-            init_method=cfg.env.dist_url,
-            rank=RANK,
-            world_size=cfg.env.gpu_count,
-        )
+        # broadcast cfg - только если gpu_count > 1
+        if cfg.env.gpu_count > 1:
+            dist.init_process_group(
+                backend=cfg.env.dist_backend,
+                init_method=cfg.env.dist_url,
+                rank=RANK,
+                world_size=cfg.env.gpu_count,
+            )
 
         # need to set random seed 
         # originally it is in common_init()
@@ -63,4 +64,5 @@ class exec_container(object):
 
         print_log('Total {:.2f} seconds'.format(timeit.default_timer() - time_start))
         self.RANK = None
-        dist.destroy_process_group()
+        if cfg.env.gpu_count > 1:
+            dist.destroy_process_group()

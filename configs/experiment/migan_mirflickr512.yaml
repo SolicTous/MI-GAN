@@ -1,8 +1,6 @@
 env:
   debug: false
   cuda: true
-  dist_backend: nccl
-  dist_url: tcp://127.0.0.1:11233
   gpu_device: [0]
   matplotlib_mode: agg
   log_root_dir: log
