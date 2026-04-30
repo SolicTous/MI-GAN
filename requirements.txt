@@ -1,7 +1,9 @@
 --find-links https://download.pytorch.org/whl/torch_stable.html
 
-torch==1.8.0+cu111
-torchvision==0.9.0+cu111
+# Для PyTorch 2.5.1+cu124 используйте совместимые версии
+# torch и torchvision устанавливаются из системного окружения или вручную
+# torch==2.5.1+cu124
+# torchvision==0.20.1+cu124
 matplotlib==3.4.2
 pyyaml==5.4.1
 opencv-python==4.5.1.48
