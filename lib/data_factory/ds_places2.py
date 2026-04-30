@@ -21,8 +21,8 @@ class places2(ds_base):
         tagging_normal = {
             'train256': ('train_256', 'train256'),
             'val256': ('val_256',   'val256'),
-            'train512': ('train_512', 'train512'),
-            'val512': ('val_512',   'val512')
+            'train512': ('train512', 'train512'),
+            'val512': ('val512',   'val512')
         }
 
         self.load_info = []
@@ -39,7 +39,12 @@ class places2(ds_base):
                     if not (impath.endswith(".jpg") or impath.endswith(".png")):
                         continue
 
-                    tags = [maintag] + subdir.split('/')[4:] + [osp.splitext(fi)[0]]
+                    # Поддержка как Windows, так и Linux путей
+                    rel_path = osp.relpath(subdir, imdir)
+                    if rel_path == '.':
+                        tags = [maintag] + [osp.splitext(fi)[0]]
+                    else:
+                        tags = [maintag] + rel_path.split(osp.sep) + [osp.splitext(fi)[0]]
                     uid = '-'.join(tags)
                     info = {
                         'unique_id': uid, 
