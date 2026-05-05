@@ -421,6 +421,11 @@ class train_stage:
             print_log('Resume from {}'.format(cfge.resume_path))
             print_log('cur_nimg {}, batch_idx {}'.format(cur_nimg, batch_idx))
 
+        # Calculate training info for epochs/steps display
+        total_images = cfgt.total_kimg * 1000
+        images_per_epoch = len(trainset)
+        total_epochs = total_images / images_per_epoch if images_per_epoch > 0 else 0
+        steps_per_epoch = len(trainloader)
 
         tick_start_time = time.time()
         maintenance_time = tick_start_time - start_time
@@ -443,6 +448,10 @@ class train_stage:
                 # Update state.
                 cur_nimg += batch_size
                 batch_idx += 1
+                
+                # Calculate current epoch and step
+                current_epoch = cur_nimg / images_per_epoch if images_per_epoch > 0 else 0
+                current_step_in_epoch = batch_idx % steps_per_epoch if steps_per_epoch > 0 else 0
 
                 # Perform maintenance tasks once per tick.
                 done = (cur_nimg >= cfgt.total_kimg * 1000)
@@ -453,6 +462,7 @@ class train_stage:
                 # Print status line, accumulating the same information in stats_collector.
                 tick_end_time = time.time()
                 fields = []
+                fields += [f"epoch {current_epoch:.2f} ({current_step_in_epoch}/{steps_per_epoch})"]
                 fields += [f"tick {training_stats.report0('Progress/tick', cur_tick):<5d}"]
                 fields += [f"kimg {training_stats.report0('Progress/kimg', cur_nimg / 1e3):<8.1f}"]
                 fields += [f"time {dnnlib.util.format_time(training_stats.report0('Timing/total_sec', tick_end_time - start_time)):<12s}"]
