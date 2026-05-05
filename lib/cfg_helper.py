@@ -109,7 +109,7 @@ class model_cfg_bank(object):
     def __call__(self, name):
         if name not in self.cfg_bank:
             cfg_path = self.get_yaml_path(name)
-            with open(cfg_path, 'r') as f:
+            with open(cfg_path, 'r', encoding='utf-8') as f:
                 cfg_new = yaml.load(
                     f, Loader=yaml.FullLoader)
             cfg_new = edict(cfg_new)
@@ -162,7 +162,7 @@ class dataset_cfg_bank(object):
     def __call__(self, name):
         if name not in self.cfg_bank:
             cfg_path = self.get_yaml_path(name)
-            with open(cfg_path, 'r') as f:
+            with open(cfg_path, 'r', encoding='utf-8') as f:
                 cfg_new = yaml.load(
                     f, Loader=yaml.FullLoader)
             cfg_new = edict(cfg_new)
@@ -216,7 +216,7 @@ class experiment_cfg_bank(object):
     def __call__(self, name):
         if name not in self.cfg_bank:
             cfg_path = self.get_yaml_path(name)
-            with open(cfg_path, 'r') as f:
+            with open(cfg_path, 'r', encoding='utf-8') as f:
                 cfg = yaml.load(
                     f, Loader=yaml.FullLoader)
             cfg = edict(cfg)
@@ -409,7 +409,7 @@ def cfg_initiates(cfg):
     haseval = 'eval' in cfg
 
     if isresume:
-        with open(osp.join(e.resume_path, 'config.yaml'), 'r') as f:
+        with open(osp.join(e.resume_path, 'config.yaml'), 'r', encoding='utf-8') as f:
             cfg_resume = yaml.load(f, Loader=yaml.FullLoader)
         cfg_resume = edict(cfg_resume)
         cfg_resume.env.update(cfg.env)
