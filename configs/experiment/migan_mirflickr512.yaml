@@ -8,6 +8,17 @@ env:
   allow_tf32: false
   cudnn_benchmark: false
 
+profile:
+  enabled: true
+  save_dir: null
+  record_shapes: true
+  profile_memory: true
+  with_stack: true
+  num_steps: 10
+  wait: 1
+  warmup: 2
+  active: 3
+
 model:
   symbol: migan
   type: migan_generator
