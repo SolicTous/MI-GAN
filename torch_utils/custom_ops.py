@@ -8,6 +8,7 @@
 
 import os
 import glob
+import ninja
 import torch
 import torch.utils.cpp_extension
 import importlib
