@@ -98,7 +98,7 @@ def get_plugin(module_name, sources, **build_kwargs):
 
     try: # pylint: disable=too-many-nested-blocks
         # Make sure we can find the necessary compiler binaries.
-        if os.name == 'nt' and os.system("where cl.exe >nul 2>nul") != 0:
+        if os.name == 'nt' and shutil.which('cl.exe') is None:
             compiler_bindir = _find_compiler_bindir()
             if compiler_bindir is None:
                 raise RuntimeError(f'Could not find MSVC/GCC/CLANG installation on this computer. Check _find_compiler_bindir() in "{__file__}".')
