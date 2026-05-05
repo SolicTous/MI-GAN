@@ -23,7 +23,7 @@ train:
   dataset: DATASET(mirflickr_train512_inpainting)
 
   batch_size_per_gpu: null
-  batch_size: 32
+  batch_size: 6
   dataset_num_workers_per_gpu: 2
   dataset_num_workers: null
   skip_partial_batch: true
