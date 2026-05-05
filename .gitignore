@@ -1,20 +1,58 @@
 ```
-# Python cache files
-__pycache__/
+# Compiled and build artifacts
 *.pyc
-*.pyo
-*.pyd
-
-# Build artifacts
-build/
+__pycache__/
+*.o
+*.obj
 dist/
-*.egg-info/
+build/
+*.so
+*.dll
+*.exe
 
-# Logs
-*.log
-
-# Environment files
+# Dependencies
+.venv/
+venv/
 .env
 .env.local
-.env.*
+*.env.*
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+
+# Editors
+.vscode/
+.idea/
+
+# Coverage
+.coverage
+coverage/
+htmlcov/
+
+# Python specific
+*.pyc
+__pycache__/
+.Python
+*.pyo
+*.pyd
+*$py.class
+*$py.o
+*$py.d
+
+# Testing
+.pytest_cache/
+.mypy_cache/
+.tox/
+
+# Distribution
+*.tar.gz
+*.whl
+*.egg
+*.egg-info/
+
+# OS
+.DS_Store
+Thumbs.db
 ```
