@@ -385,7 +385,7 @@ class train_stage:
         # Export sample images.
         if RANK == 0:
             highlight_print('Exporting sample images...')
-            demof = self.draw_function(RANK, [8, 6], batch_gpu, cfgt.log_dir)
+            demof = self.draw_function(RANK, [4,2], batch_gpu, cfgt.log_dir)
             demof(generator=G_ema, evalset=evalset,
                   filename='fakes_init.png', isinit=True)
 

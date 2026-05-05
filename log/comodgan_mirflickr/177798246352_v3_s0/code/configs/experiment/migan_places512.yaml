@@ -1,23 +1,14 @@
 env:
   debug: false
   cuda: true
-  gpu_device: [0]
+  dist_backend: nccl
+  dist_url: tcp://127.0.0.1:11233
+  gpu_device: all
   matplotlib_mode: agg
   log_root_dir: log
   rnd_seed: 0
   allow_tf32: false
   cudnn_benchmark: false
-
-profile:
-  enabled: true              # Включить профилирование (true/false) - ОТКЛЮЧИТЕ для ускорения обучения
-  save_dir: null              # Путь для сохранения результатов (по умолчанию: <log_dir>/profiling)
-  record_shapes: true         # Записывать формы тензоров
-  profile_memory: true        # Отслеживать использование памяти
-  with_stack: true            # Записывать стек вызовов
-  num_steps: 10               # Количество шагов для записи
-  wait: 1                     # Количество шагов ожидания перед началом записи
-  warmup: 2                   # Количество шагов прогрева
-  active: 3                   # Количество активных шагов записи
 
 model:
   symbol: migan
@@ -31,10 +22,10 @@ train:
   signature: []
   exec_stage: migan_default.train_stage
 
-  dataset: DATASET(mirflickr_train512_inpainting)
+  dataset: DATASET(places2_train512_inpainting)
 
   batch_size_per_gpu: null
-  batch_size: 2
+  batch_size: 32
   dataset_num_workers_per_gpu: 2
   dataset_num_workers: null
   skip_partial_batch: true
@@ -78,8 +69,8 @@ train:
   save_code: true
 
 eval:
-  dataset: DATASET(mirflickr_val512_inpainting)
+  dataset: DATASET(places2_val512_inpainting)
   batch_size_per_gpu: null
-  batch_size: 4
+  batch_size: 32
   dataset_num_workers_per_gpu: 4
   dataset_num_workers: null
