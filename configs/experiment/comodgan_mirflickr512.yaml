@@ -9,7 +9,7 @@ env:
   cudnn_benchmark: false
 
 profile:
-  enabled: false              # Включить профилирование (true/false) - ОТКЛЮЧИТЕ для ускорения обучения
+  enabled: true              # Включить профилирование (true/false) - ОТКЛЮЧИТЕ для ускорения обучения
   save_dir: null              # Путь для сохранения результатов (по умолчанию: <log_dir>/profiling)
   record_shapes: true         # Записывать формы тензоров
   profile_memory: true        # Отслеживать использование памяти
