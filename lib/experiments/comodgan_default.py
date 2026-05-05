@@ -258,6 +258,30 @@ class train_stage:
         cfgm_g = cfg.model_g
         cfgm_d = cfg.model_d
         isresume = getattr(cfge, 'resume_path', None) is not None
+        
+        # Initialize profiler if enabled
+        profile_enabled = getattr(cfg, 'profile', None) is not None and getattr(cfg.profile, 'enabled', False)
+        profiler = None
+        profile_step = 0
+        if profile_enabled and RANK == 0:
+            profile_cfg = cfg.profile
+            save_dir = profile_cfg.save_dir if profile_cfg.save_dir else osp.join(cfgt.log_dir, 'profiling')
+            profiler = torch.profiler.profile(
+                activities=[
+                    torch.profiler.ProfilerActivity.CPU,
+                    torch.profiler.ProfilerActivity.CUDA,
+                ],
+                schedule=torch.profiler.schedule(
+                    wait=getattr(profile_cfg, 'wait', 1),
+                    warmup=getattr(profile_cfg, 'warmup', 2),
+                    active=getattr(profile_cfg, 'active', 3),
+                ),
+                on_trace_ready=torch.profiler.tensorboard_trace_handler(save_dir),
+                record_shapes=getattr(profile_cfg, 'record_shapes', True),
+                profile_memory=getattr(profile_cfg, 'profile_memory', True),
+                with_stack=getattr(profile_cfg, 'with_stack', True),
+            )
+            print_log(f'Profiler enabled, results will be saved to: {save_dir}')
 
         # Initialize.
         start_time = time.time()
@@ -433,6 +457,17 @@ class train_stage:
         done = False
         while not done:
             for batch in trainloader:
+                # Step profiler if enabled
+                if profiler is not None:
+                    profiler.step()
+                    profile_step += 1
+                    # Stop profiling after configured number of steps to avoid excessive logging
+                    max_steps = getattr(cfg.profile, 'num_steps', 10) + getattr(cfg.profile, 'wait', 1) + getattr(cfg.profile, 'warmup', 2) + getattr(cfg.profile, 'active', 3)
+                    if profile_step > max_steps:
+                        profiler.stop()
+                        profiler = None
+                        print_log('Profiler stopped after capturing configured steps.')
+                
                 rv = self.main(batch, [G, D], RANK, phases=phases, batch_idx=batch_idx, loss=loss)
 
                 # Update G_ema.
@@ -618,6 +653,12 @@ class train_stage:
                 tick_start_nimg = cur_nimg
                 tick_start_time = time.time()
                 maintenance_time = tick_start_time - tick_end_time
+                
+                # Stop profiler at the end if still running
+                if profiler is not None:
+                    profiler.stop()
+                    profiler = None
+                    
                 if done:
                     break
 
