@@ -1,14 +1,20 @@
-```gitignore
+```
 # Python cache files
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
-./log
-/log
+# Build artifacts
+build/
+dist/
+*.egg-info/
 
-# Torch utils cache
-torch_utils/__pycache__/
-torch_utils/ops/__pycache__/
+# Logs
+*.log
+
+# Environment files
+.env
+.env.local
+.env.*
 ```
