@@ -141,9 +141,16 @@ def _conv2d_gradfix(transpose, weight_shape, stride, padding, output_padding, di
     class Conv2dGradWeight(torch.autograd.Function):
         @staticmethod
         def forward(ctx, grad_output, input):
-            op = torch._C._jit_get_operation('aten::cudnn_convolution_backward_weight' if not transpose else 'aten::cudnn_convolution_transpose_backward_weight')
-            flags = [torch.backends.cudnn.benchmark, torch.backends.cudnn.deterministic, torch.backends.cudnn.allow_tf32]
-            grad_weight = op(weight_shape, grad_output, input, padding, stride, dilation, groups, *flags)
+            # In PyTorch 2.x, torch._C._jit_get_operation returns a tuple, so we use torch.ops.aten instead
+            # Signature: convolution_backward(grad_output, input, weight, bias_sizes, stride, padding, dilation, transposed, output_padding, groups, output_mask)
+            # output_mask = [need_grad_input, need_grad_weight, need_grad_bias]
+            weight = torch.zeros(weight_shape, device=grad_output.device, dtype=grad_output.dtype)
+            output_mask = [False, True, False]  # Only need grad_weight
+            grad_outputs = torch.ops.aten.convolution_backward.default(
+                grad_output, input, weight, None, stride, padding, dilation, 
+                transpose, output_padding, groups, output_mask
+            )
+            grad_weight = grad_outputs[1]
             assert grad_weight.shape == weight_shape
             ctx.save_for_backward(grad_output, input)
             return grad_weight
