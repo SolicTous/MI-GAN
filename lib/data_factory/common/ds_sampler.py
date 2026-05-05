@@ -96,5 +96,5 @@ class DistributedSampler(torch.utils.data.Sampler):
             indices = indices.tolist()
         else:
             indices = list(range(len(self.dataset)))
-        print_log(str(indices[0:5]))
+        # print_log(str(indices[0:5]))
         return indices
