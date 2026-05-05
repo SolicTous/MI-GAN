@@ -201,6 +201,14 @@ def compute_feature_stats_for_dataset(opts, detector_url, detector_kwargs, rel_l
     dl_resolution = getattr(evalloader.dataset.formatter, 'dl_resolution', None)
     dl_mode = getattr(evalloader.dataset, 'mode')
 
+    # Print dataset size
+    num_items_total = len(evalloader.dataset)
+    print(f'EVAL_DATASET_SIZE (total): {num_items_total}')
+    if max_items is not None:
+        print(f'EVAL_DATASET_SIZE (used for metrics): {min(num_items_total, max_items)}')
+    else:
+        print(f'EVAL_DATASET_SIZE (used for metrics): {num_items_total}')
+
     # Try to lookup from cache.
     cache_file = None
     if opts.cache:
@@ -256,6 +264,14 @@ def compute_feature_stats_for_dataset(opts, detector_url, detector_kwargs, rel_l
 def compute_feature_stats_for_inpainting(opts, detector_url, detector_kwargs, rel_lo=0, rel_hi=1, **stats_kwargs):
     evalloader = opts.evalloader
     G = copy.deepcopy(opts.G).eval().requires_grad_(False).to(opts.device)
+
+    # Print dataset size
+    num_items_total = len(evalloader.dataset)
+    print(f'EVAL_DATASET_SIZE (total): {num_items_total}')
+    if stats_kwargs.get('max_items') is not None:
+        print(f'EVAL_DATASET_SIZE (used for metrics): {min(num_items_total, stats_kwargs["max_items"])}')
+    else:
+        print(f'EVAL_DATASET_SIZE (used for metrics): {num_items_total}')
 
     # Image generation func.
     def run_generator(x):

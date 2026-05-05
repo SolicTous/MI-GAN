@@ -345,6 +345,10 @@ class train_stage:
             collate_fn = collate(), 
         )
 
+        if RANK == 0:
+            print_log(f'TRAIN_DATASET_SIZE: {len(trainset)}')
+            print_log(f'EVAL_DATASET_SIZE: {len(evalset)}')
+
         ######################
         # Construct networks #
         ######################
@@ -901,6 +905,9 @@ class eval_stage:
             pin_memory = False,
             collate_fn = collate(), 
         )
+
+        if RANK == 0:
+            print_log(f'EVAL_DATASET_SIZE: {len(evalset)}')
 
         ######################
         # Construct networks #
