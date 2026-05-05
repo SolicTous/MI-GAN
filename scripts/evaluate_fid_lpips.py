@@ -227,6 +227,7 @@ def main():
         num_workers=args.num_workers
     )
 
+    print(f"Real dataset size: {len(inference_dataset)}")
     print("Starting the inference... ")
 
     lpips_vals = []
