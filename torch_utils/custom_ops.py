@@ -31,6 +31,7 @@ def _find_compiler_bindir():
         'C:/Program Files (x86)/Microsoft Visual Studio/*/BuildTools/VC/Tools/MSVC/*/bin/Hostx64/x64',
         'C:/Program Files (x86)/Microsoft Visual Studio/*/Community/VC/Tools/MSVC/*/bin/Hostx64/x64',
         'C:/Program Files (x86)/Microsoft Visual Studio */vc/bin',
+        'C:/Program Files/Microsoft Visual Studio/*/Community/VC/Tools/MSVC/*/bin/Hostx64/x64'
     ]
     for pattern in patterns:
         matches = sorted(glob.glob(pattern))
