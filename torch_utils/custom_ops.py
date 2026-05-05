@@ -27,13 +27,50 @@ verbosity = 'brief' # Verbosity level: 'none', 'brief', 'full'
 # Internal helper funcs.
 
 def _find_compiler_bindir():
+    # First, try to find VCINSTALLDIR or VCToolsInstallDir environment variables
+    vc_install_dir = os.environ.get('VCINSTALLDIR')
+    if vc_install_dir:
+        bindir = os.path.join(vc_install_dir, 'bin', 'Hostx64', 'x64')
+        if os.path.isdir(bindir):
+            return bindir
+    
+    vctools_install_dir = os.environ.get('VCToolsInstallDir')
+    if vctools_install_dir:
+        bindir = os.path.join(vctools_install_dir, 'bin', 'Hostx64', 'x64')
+        if os.path.isdir(bindir):
+            return bindir
+    
+    # Try using vswhere to find Visual Studio installation
+    vswhere_path = r'C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe'
+    if os.path.exists(vswhere_path):
+        import subprocess
+        try:
+            result = subprocess.run(
+                [vswhere_path, '-latest', '-products', '*', '-requires', 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64', '-property', 'installationPath'],
+                capture_output=True, text=True
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                vs_path = result.stdout.strip()
+                # Find the MSVC version directory
+                msvc_path = os.path.join(vs_path, 'VC', 'Tools', 'MSVC')
+                if os.path.isdir(msvc_path):
+                    msvc_versions = sorted(os.listdir(msvc_path))
+                    if msvc_versions:
+                        bindir = os.path.join(msvc_path, msvc_versions[-1], 'bin', 'Hostx64', 'x64')
+                        if os.path.isdir(bindir):
+                            return bindir
+        except Exception:
+            pass
+    
+    # Fallback to glob patterns for various Visual Studio versions and editions
     patterns = [
+        'C:/Program Files/Microsoft Visual Studio/*/Professional/VC/Tools/MSVC/*/bin/Hostx64/x64',
+        'C:/Program Files/Microsoft Visual Studio/*/BuildTools/VC/Tools/MSVC/*/bin/Hostx64/x64',
+        'C:/Program Files/Microsoft Visual Studio/*/Community/VC/Tools/MSVC/*/bin/Hostx64/x64',
         'C:/Program Files (x86)/Microsoft Visual Studio/*/Professional/VC/Tools/MSVC/*/bin/Hostx64/x64',
         'C:/Program Files (x86)/Microsoft Visual Studio/*/BuildTools/VC/Tools/MSVC/*/bin/Hostx64/x64',
         'C:/Program Files (x86)/Microsoft Visual Studio/*/Community/VC/Tools/MSVC/*/bin/Hostx64/x64',
         'C:/Program Files (x86)/Microsoft Visual Studio */vc/bin',
-        'C:/Program Files/Microsoft Visual Studio/*/Community/VC/Tools/MSVC/*/bin/Hostx64/x64'
-        'C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64'
     ]
     for pattern in patterns:
         matches = sorted(glob.glob(pattern))
