@@ -52,7 +52,7 @@ def _init():
 
 #----------------------------------------------------------------------------
 
-def bias_act(x, b=None, dim=1, act='linear', alpha=None, gain=None, clamp=None, impl='cuda'):
+def bias_act(x, b=None, dim=1, act='linear', alpha=None, gain=None, clamp=None, impl='ref'):
     r"""Fused bias and activation function.
 
     Adds bias `b` to activation tensor `x`, evaluates activation function `act`,
@@ -77,7 +77,7 @@ def bias_act(x, b=None, dim=1, act='linear', alpha=None, gain=None, clamp=None, 
                 If unsure, consider specifying 1.
         clamp:  Clamp the output values to `[-clamp, +clamp]`, or `None` to disable
                 the clamping (default).
-        impl:   Name of the implementation to use. Can be `"ref"` or `"cuda"` (default).
+        impl:   Name of the implementation to use. Can be `"ref"` or `"cuda"` (default: `"ref"`).
 
     Returns:
         Tensor of the same shape and datatype as `x`.
