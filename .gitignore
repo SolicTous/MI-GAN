@@ -5,6 +5,9 @@ __pycache__/
 *.pyo
 *.pyd
 
+./log
+/log
+
 # Torch utils cache
 torch_utils/__pycache__/
 torch_utils/ops/__pycache__/
