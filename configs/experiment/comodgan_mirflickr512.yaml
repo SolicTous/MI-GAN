@@ -9,15 +9,15 @@ env:
   cudnn_benchmark: false
 
 profile:
-  enabled: true
-  save_dir: null
-  record_shapes: true
-  profile_memory: true
-  with_stack: true
-  num_steps: 10
-  wait: 1
-  warmup: 2
-  active: 3
+  enabled: false              # Включить профилирование (true/false) - ОТКЛЮЧИТЕ для ускорения обучения
+  save_dir: null              # Путь для сохранения результатов (по умолчанию: <log_dir>/profiling)
+  record_shapes: true         # Записывать формы тензоров
+  profile_memory: true        # Отслеживать использование памяти
+  with_stack: true            # Записывать стек вызовов
+  num_steps: 10               # Количество шагов для записи
+  wait: 1                     # Количество шагов ожидания перед началом записи
+  warmup: 2                   # Количество шагов прогрева
+  active: 3                   # Количество активных шагов записи
 
 model:
   symbol: comodgan

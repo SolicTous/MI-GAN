@@ -281,6 +281,7 @@ class train_stage:
                 profile_memory=getattr(profile_cfg, 'profile_memory', True),
                 with_stack=getattr(profile_cfg, 'with_stack', True),
             )
+            profiler.start()
             print_log(f'Profiler enabled, results will be saved to: {save_dir}')
 
         # Initialize.
