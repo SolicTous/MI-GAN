@@ -103,7 +103,7 @@ class FeatureStats:
         self.set_num_features(x.shape[1])
         self.num_items += x.shape[0]
         if self.capture_all:
-            self.all_features.append(x.cpy().numpy)
+            self.all_features.append(x.clone())
         if self.capture_mean_cov:
             x64 = x.to(torch.float64)
             self.raw_mean += x64.sum(0).cpu().numpy()
@@ -247,8 +247,8 @@ def compute_feature_stats_for_dataset(opts, detector_url, detector_kwargs, rel_l
     detector = get_feature_detector(url=detector_url, device=opts.device, num_gpus=opts.num_gpus, rank=opts.rank, verbose=progress.verbose)
 
     for batch in evalloader:
-        images = batch[image_at_batch_idx] * 127.5 + 127.5  
-        features = detector(images.to(opts.device), **detector_kwargs)
+        images = (batch[image_at_batch_idx] * 127.5 + 127.5).to(opts.device)
+        features = detector(images, **detector_kwargs)
         stats.append_torch(features, num_gpus=opts.num_gpus, rank=opts.rank)
         progress.update(stats.num_items)
 
@@ -278,7 +278,7 @@ def compute_feature_stats_for_inpainting(opts, detector_url, detector_kwargs, re
         m = x[:, 0:1]+0.5
         img = G(x=x, **opts.G_kwargs)
         img_combined = x[:, 1:4]*m + img*(1-m)
-        img_combined = (img_combined * 127.5 + 127.5).clamp(0, 255).to(torch.uint8)
+        img_combined = (img_combined * 127.5 + 127.5).clamp(0, 255).to(torch.uint8).to(opts.device)
         return img_combined
 
     # Initialize.
