@@ -573,15 +573,17 @@ class train_stage:
                         if module is not None:
                             if cfge.gpu_count > 1:
                                 self.check_ddp_consistency(module)
-                            module = copy.deepcopy(module).eval().requires_grad_(False)
+                            module = copy.deepcopy(module).eval().requires_grad_(False).cpu()
                         snapshot_data[name] = module
                         del module # conserve memory
 
                 if (RANK == 0) and snapshot_cond:
                     print_log('Save image snapshot...')
-                    demof(generator=snapshot_data['G_ema'], filename='fakes{:06d}.png'.format(cur_nimg//1000))
+                    with torch.no_grad():
+                        demof(generator=snapshot_data['G_ema'], filename='fakes{:06d}.png'.format(cur_nimg//1000))
                 if (RANK == 0) and flag_better:
-                    demof(generator=snapshot_data['G_ema'], filename='fakes_best.png')
+                    with torch.no_grad():
+                        demof(generator=snapshot_data['G_ema'], filename='fakes_best.png')
 
                 #########################
                 # Save network snapshot #
