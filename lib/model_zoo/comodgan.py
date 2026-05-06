@@ -237,9 +237,9 @@ class synthesis_block_first(nn.Module):
     def forward(self, x, x0, ws, fused_modconv=None, noise_mode='random'):
         dtype = torch.float32
 
+        # Always use fused_modconv during training for better performance
         if fused_modconv is None:
-            with misc.suppress_tracer_warnings():
-                fused_modconv = (not self.training) and (dtype == torch.float32 or int(x.shape[0]) == 1)
+            fused_modconv = True
 
         x = x.to(dtype=dtype, memory_format=torch.contiguous_format)
         x0 = x0.to(dtype=dtype, memory_format=torch.contiguous_format)
@@ -305,9 +305,9 @@ class synthesis_block(stylegan_synthesis_block):
     def forward(self, x, x0, img, ws, w0, fused_modconv=None, noise_mode='random'):
         dtype = torch.float16 if self.use_fp16 else torch.float32
 
+        # Always use fused_modconv during training for better performance
         if fused_modconv is None:
-            with misc.suppress_tracer_warnings():
-                fused_modconv = (not self.training) and (dtype == torch.float32 or int(x.shape[0]) == 1)
+            fused_modconv = True
 
         x = x.to(dtype=dtype, memory_format=torch.contiguous_format)
         x0 = x0.to(dtype=dtype, memory_format=torch.contiguous_format)
