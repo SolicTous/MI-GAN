@@ -5,11 +5,11 @@ env:
   matplotlib_mode: agg
   log_root_dir: log
   rnd_seed: 0
-  allow_tf32: false
-  cudnn_benchmark: false
+  allow_tf32: true
+  cudnn_benchmark: true
 
 profile:
-  enabled: true              # Включить профилирование (true/false) - ОТКЛЮЧИТЕ для ускорения обучения
+  enabled: false              # Включить профилирование (true/false) - ОТКЛЮЧИТЕ для ускорения обучения
   save_dir: null              # Путь для сохранения результатов (по умолчанию: <log_dir>/profiling)
   record_shapes: true         # Записывать формы тензоров
   profile_memory: true        # Отслеживать использование памяти
@@ -35,8 +35,8 @@ train:
 
   batch_size_per_gpu: null
   batch_size: 2
-  dataset_num_workers_per_gpu: 2
-  dataset_num_workers: null
+  dataset_num_workers_per_gpu: 4
+  dataset_num_workers: 4
   skip_partial_batch: true
 
   loss_kwargs:
@@ -56,14 +56,14 @@ train:
     eps: 1.e-08
   d_reg_interval: 16
 
-  total_kimg: 25000
+  total_kimg: 10000 # 25000
   ema_kimg: 20
   ema_rampup: null
   kimg_per_tick: 4
   snapshot:
-    evaluate: 25
-    image: 100
-    checkpoint: 100
+    evaluate: 200 # 25
+    image: 200 # 100
+    checkpoint: 200 # 100
   metrics:
     - fid10k_full_inpainting
 
@@ -75,4 +75,4 @@ eval:
   batch_size_per_gpu: null
   batch_size: 4
   dataset_num_workers_per_gpu: 4
-  dataset_num_workers: null
+  dataset_num_workers: 4
