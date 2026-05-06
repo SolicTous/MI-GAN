@@ -32,6 +32,7 @@ train:
 
   loss_kwargs:
     r1_gamma: 10
+    pl_weight: 0
 
   g_opt_kwargs:
     class_name: torch.optim.Adam
