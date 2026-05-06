@@ -74,37 +74,39 @@ class draw_functor:
         filename = kwargs['filename'] if 'filename' in kwargs else 'demo.png'
         isinit = kwargs['isinit'] if 'isinit' in kwargs else False
 
-        if 'input' in kwargs:
-            images = [generator(**input_i).cpu() for input_i in kwargs['input']]
-            # recover grid_real and grid_mask from overrided input
-            grid_real = torch.cat([input_i['x'][:, 1:] for input_i in kwargs['input']])
-            grid_mask = torch.cat([input_i['x'][:, 0:1] for input_i in kwargs['input']])+0.5
-            grid_real, grid_mask = grid_real.detach().to('cpu'), grid_mask.detach().to('cpu')
-        elif self.input is not None:
-            images = [generator(**input_i).cpu() for input_i in self.input]
-            # recover grid_real and grid_mask from saved input
-            grid_real = torch.cat([input_i['x'][:, 1:] for input_i in self.input])
-            grid_mask = torch.cat([input_i['x'][:, 0:1] for input_i in self.input])+0.5
-            grid_real, grid_mask = grid_real.detach().to('cpu'), grid_mask.detach().to('cpu')
-        else:
-            evalset = kwargs['evalset']
-            grid_size_n = np.prod(self.grid_size)
+        generator.eval()
+        with torch.no_grad():
+            if 'input' in kwargs:
+                images = [generator(**input_i).cpu() for input_i in kwargs['input']]
+                # recover grid_real and grid_mask from overrided input
+                grid_real = torch.cat([input_i['x'][:, 1:] for input_i in kwargs['input']])
+                grid_mask = torch.cat([input_i['x'][:, 0:1] for input_i in kwargs['input']])+0.5
+                grid_real, grid_mask = grid_real.detach().to('cpu'), grid_mask.detach().to('cpu')
+            elif self.input is not None:
+                images = [generator(**input_i).cpu() for input_i in self.input]
+                # recover grid_real and grid_mask from saved input
+                grid_real = torch.cat([input_i['x'][:, 1:] for input_i in self.input])
+                grid_mask = torch.cat([input_i['x'][:, 0:1] for input_i in self.input])+0.5
+                grid_real, grid_mask = grid_real.detach().to('cpu'), grid_mask.detach().to('cpu')
+            else:
+                evalset = kwargs['evalset']
+                grid_size_n = np.prod(self.grid_size)
 
-            grid_real, grid_mask, _ = zip(*[evalset[i] for i in range(grid_size_n)])
-            # To avoid a wierd bug in ZipFile VVVV
-            if getattr(evalset.loader[0], 'zipfile_close', None) is not None:
-                evalset.loader[0].zipfile_close()
-            grid_real = torch.stack([torch.FloatTensor(i) for i in grid_real])
-            grid_mask = torch.stack([torch.FloatTensor(i) for i in grid_mask]).unsqueeze(1)
-            grid_real_erased = grid_real * grid_mask
-            grid_x = torch.cat([grid_mask-0.5, grid_real_erased], axis=1)
-            if RANK >= 0:
-                grid_x = grid_x.to(RANK)
+                grid_real, grid_mask, _ = zip(*[evalset[i] for i in range(grid_size_n)])
+                # To avoid a wierd bug in ZipFile VVVV
+                if getattr(evalset.loader[0], 'zipfile_close', None) is not None:
+                    evalset.loader[0].zipfile_close()
+                grid_real = torch.stack([torch.FloatTensor(i) for i in grid_real])
+                grid_mask = torch.stack([torch.FloatTensor(i) for i in grid_mask]).unsqueeze(1)
+                grid_real_erased = grid_real * grid_mask
+                grid_x = torch.cat([grid_mask-0.5, grid_real_erased], axis=1)
+                if RANK >= 0:
+                    grid_x = grid_x.to(RANK)
 
-            grid_x = grid_x.split(self.batch_gpu)
+                grid_x = grid_x.split(self.batch_gpu)
 
-            self.input = [{'x': x, 'noise_mode': 'const'} for x in grid_x]
-            images = [generator(**input_i).cpu() for input_i in self.input]
+                self.input = [{'x': x, 'noise_mode': 'const'} for x in grid_x]
+                images = [generator(**input_i).cpu() for input_i in self.input]
 
         images = torch.cat(images)
         self.output(images, os.path.join(
