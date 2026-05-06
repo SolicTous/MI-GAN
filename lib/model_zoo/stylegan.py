@@ -585,7 +585,7 @@ class Synthesis(nn.Module):
         x = img = None
         for res, cur_ws in zip(self.block_res, block_ws):
             block = getattr(self, f'b{res}')
-            x, img = block(x, img, cur_ws, noise_mode=noise_mode)
+            x, img = block(x, img, cur_ws, fused_modconv=True, noise_mode=noise_mode)
         return img
 
 
