@@ -101,6 +101,16 @@ def fid10k_full_inpainting(opts):
     return {'fid10k_full_inpainting' : fid()}
 
 @register_metric
+def fid100_full_inpainting(opts):
+    fid = frechet_inception_distance.compute_fid_inpainting(opts, max_real=None, num_gen=100)
+    return {'fid10k_full_inpainting' : fid()}
+
+@register_metric
+def fid2k_full_inpainting(opts):
+    fid = frechet_inception_distance.compute_fid_inpainting(opts, max_real=None, num_gen=2000)
+    return {'fid10k_full_inpainting' : fid()}
+
+@register_metric
 def fid36500_full_inpainting(opts):
     fid = frechet_inception_distance.compute_fid_inpainting(opts, max_real=None, num_gen=36500)
     return {'fid36500_full_inpainting' : fid()}
