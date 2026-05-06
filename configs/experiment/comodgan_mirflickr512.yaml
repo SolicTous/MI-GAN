@@ -66,7 +66,7 @@ train:
     image: 200 # 100
     checkpoint: 200 # 100
   metrics:
-    - fid100_full_inpainting
+    - fid100k_full_inpainting
 
   save_init_model: false
   save_code: true
