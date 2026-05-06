@@ -16,7 +16,7 @@ version = '2'
 symbol = 'stylegan'
 
 from torch_utils import misc
-from torch_utils.ops import upfirdn2d, conv2d_gradfix, conv2d_resample, fma
+from torch_utils.ops import upfirdn2d, conv2d_resample, fma
 
 from torch.nn.modules.utils import _pair
 
@@ -52,11 +52,11 @@ class conv2d(nn.Conv2d):
         w = (self.weight * w_gain).to(x.dtype)
         b = self.bias.to(x.dtype) if self.bias is not None else None
         if self.padding_mode != 'zeros':
-            return conv2d_gradfix.conv2d(
+            return F.conv2d(
                 F.pad(x, self._reversed_padding_repeated_twice, mode=self.padding_mode),
                 w, b, self.stride,
                 _pair(0), self.dilation, self.groups)
-        return conv2d_gradfix.conv2d(
+        return F.conv2d(
             x, w, b, self.stride,
             self.padding, self.dilation, self.groups)
 

@@ -81,7 +81,7 @@ class CoModGanLoss(Loss):
                 loss_Gmain.mean().mul(gain).backward()
 
         # Gpl: Apply path length regularization.
-        if do_Gpl:
+        if do_Gpl and self.pl_weight != 0:
             with torch.autograd.profiler.record_function('Gpl_forward'):
                 batch_size = max(gen_z.shape[0] // self.pl_batch_shrink, 1)
                 gen_x = torch.cat([mask-0.5, real_img_erased], dim=1)
@@ -105,6 +105,9 @@ class CoModGanLoss(Loss):
                 training_stats.report('Loss/G/reg', loss_Gpl)
             with torch.autograd.profiler.record_function('Gpl_backward'):
                 (gen_img[:, 0, 0, 0] * 0 + loss_Gpl).mean().mul(gain).backward()
+        elif do_Gpl:
+            # PL включен в расписании, но вес = 0, просто пропускаем вычисления
+            pass
 
         # Dmain: Minimize logits for generated images.
         loss_Dgen = 0
