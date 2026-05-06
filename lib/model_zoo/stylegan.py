@@ -495,9 +495,9 @@ class synthesis_block(nn.Module):
     def forward(self, x, img, ws, fused_modconv=None, noise_mode='random'):
         dtype = torch.float16 if self.use_fp16 else torch.float32
 
+        # Always use fused_modconv during training for better performance
         if fused_modconv is None:
-            with misc.suppress_tracer_warnings():
-                fused_modconv = (not self.training) and (dtype == torch.float32 or int(x.shape[0]) == 1)
+            fused_modconv = True
 
         if self.const is not None:
             x = self.const.to(dtype=dtype, memory_format=torch.contiguous_format)
