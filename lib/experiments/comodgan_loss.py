@@ -88,11 +88,18 @@ class CoModGanLoss(Loss):
                 gen_img, gen_ws = self.run_G(gen_x[:batch_size], gen_z[:batch_size], gen_c[:batch_size], sync=sync)
                 pl_noise = torch.randn_like(gen_img) / np.sqrt(gen_img.shape[2] * gen_img.shape[3])
                 with torch.autograd.profiler.record_function('pl_grads'), conv2d_gradfix.no_weight_gradients():
-                    pl_grads = torch.autograd.grad(outputs=[(gen_img * pl_noise).sum()], inputs=[gen_ws], create_graph=True, only_inputs=True, allow_unused=True)[0]
-                pl_lengths = pl_grads.square().sum(2).mean(1).sqrt()
-                pl_mean = self.pl_mean.lerp(pl_lengths.mean(), self.pl_decay)
-                self.pl_mean.copy_(pl_mean.detach())
-                pl_penalty = (pl_lengths - pl_mean).square()
+                    pl_grads_result = torch.autograd.grad(outputs=[(gen_img * pl_noise).sum()], inputs=[gen_ws], create_graph=True, only_inputs=True, allow_unused=True)
+                    if pl_grads_result[0] is None:
+                        # Если градиент не вычислен (веса не влияют на выход), используем нулевую регуляризацию
+                        pl_lengths = torch.zeros(gen_ws.shape[0], device=gen_ws.device, dtype=gen_ws.dtype)
+                        pl_penalty = torch.zeros_like(pl_lengths)
+                    else:
+                        pl_grads = pl_grads_result[0]
+                        pl_lengths = pl_grads.square().sum(2).mean(1).sqrt()
+                        pl_mean = self.pl_mean.lerp(pl_lengths.mean(), self.pl_decay)
+                        self.pl_mean.copy_(pl_mean.detach())
+                        pl_penalty = (pl_lengths - pl_mean).square()
+                
                 training_stats.report('Loss/pl_penalty', pl_penalty)
                 loss_Gpl = pl_penalty * self.pl_weight
                 training_stats.report('Loss/G/reg', loss_Gpl)
