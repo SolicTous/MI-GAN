@@ -1,0 +1,85 @@
+env:
+  debug: false
+  cuda: true
+  gpu_device: [0]
+  matplotlib_mode: agg
+  log_root_dir: log
+  rnd_seed: 0
+  allow_tf32: true
+  cudnn_benchmark: true
+
+profile:
+  enabled: false              # Включить профилирование (true/false) - ОТКЛЮЧИТЕ для ускорения обучения
+  save_dir: null              # Путь для сохранения результатов (по умолчанию: <log_dir>/profiling)
+  record_shapes: true         # Записывать формы тензоров
+  profile_memory: true        # Отслеживать использование памяти
+  with_stack: true            # Записывать стек вызовов
+  num_steps: 10               # Количество шагов для записи
+  wait: 1                     # Количество шагов ожидания перед началом записи
+  warmup: 2                   # Количество шагов прогрева
+  active: 3                   # Количество активных шагов записи
+
+model:
+  symbol: migan
+  type: migan_generator
+
+model_g: MODEL(migan_dw_reparam_g512)
+model_d: MODEL(migan_dw_reparam_d512)
+
+train:
+  experiment_id: null
+  signature: []
+  exec_stage: migan_default.train_stage
+
+  dataset: DATASET(mirflickr_train512_inpainting)
+
+  batch_size_per_gpu: null
+  batch_size: 2
+  dataset_num_workers_per_gpu: 4
+  dataset_num_workers: 4
+  skip_partial_batch: true
+
+  image_level_kd_kwargs:
+    use_image_level_kd: True
+    inference_resolution: 512
+    start_resolution: 32
+    weight: 2.0
+    teacher1_path: ./models/comodgan_512_places2.pt
+
+  loss_kwargs:
+    r1_gamma: 10
+
+  g_opt_kwargs:
+    class_name: torch.optim.Adam
+    lr: 0.001
+    betas: [0, 0.99]
+    eps: 1.e-08
+  g_reg_interval: 4
+
+  d_opt_kwargs:
+    class_name: torch.optim.Adam
+    lr: 0.001
+    betas: [0, 0.99]
+    eps: 1.e-08
+  d_reg_interval: 16
+
+  total_kimg: 10000
+  ema_kimg: 20
+  ema_rampup: null
+  kimg_per_tick: 4
+  snapshot:
+    evaluate: 200 # 25
+    image: 200 # 100
+    checkpoint: 200 # 100
+  metrics:
+    - fid100_full_inpainting
+
+  save_init_model: false
+  save_code: true
+
+eval:
+  dataset: DATASET(mirflickr_val512_inpainting)
+  batch_size_per_gpu: null
+  batch_size: 4
+  dataset_num_workers_per_gpu: 4
+  dataset_num_workers: 4
