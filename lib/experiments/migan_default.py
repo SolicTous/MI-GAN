@@ -1,4 +1,4 @@
-﻿import copy
+import copy
 import json
 import os
 import os.path as osp
@@ -505,25 +505,32 @@ class train_stage:
                     if RANK == 0:
                         print('Evaluating metrics...')
 
-                    snapshot_data = {}
+                    snapshot_data_eval = {}
                     for name, module in [('G', G),
                                          ('D', D),
                                          ('G_ema', G_ema)]:
                         if module is not None:
                             if cfge.gpu_count > 1:
                                 self.check_ddp_consistency(module)
-                            module = copy.deepcopy(module).eval().requires_grad_(False)
-                        snapshot_data[name] = module
+                            snapshot_data_eval[name] = module.state_dict()
+                        else:
+                            snapshot_data_eval[name] = None
+
+                    # Create temporary model for metric evaluation
+                    G_ema_tmp = get_model()(cfgm_g).eval().requires_grad_(False).to(device)
+                    G_ema_tmp.load_state_dict(snapshot_data_eval['G_ema'])
 
                     for metric in cfgt.metrics:
                         result_dict = metric_main.calc_metric(
                             metric=metric,
-                            G=snapshot_data['G_ema'],
+                            G=G_ema_tmp,
                             num_gpus=cfge.gpu_count,
                             rank=RANK,
                             device=device,
                             evalloader=evalloader, )
                         stats_metrics.update(result_dict.results)
+
+                    del G_ema_tmp
 
                     if RANK == 0:
                         metric_main.report_metric(result_dict, run_dir=cfgt.log_dir)
@@ -545,15 +552,23 @@ class train_stage:
                         if module is not None:
                             if cfge.gpu_count > 1:
                                 self.check_ddp_consistency(module)
-                            module = copy.deepcopy(module).eval().requires_grad_(False)
-                        snapshot_data[name] = module
-                        del module  # conserve memory
+                            # Use state_dict for faster copying instead of deepcopy
+                            snapshot_data[name] = module.state_dict()
+                        else:
+                            snapshot_data[name] = None
 
                 if (RANK == 0) and snapshot_cond:
                     print_log('Save image snapshot...')
-                    demof(generator=snapshot_data['G_ema'], filename='fakes{:06d}.png'.format(cur_nimg // 1000))
+                    # Create a temporary model to load state_dict for inference
+                    G_ema_tmp = get_model()(cfgm_g).eval().requires_grad_(False).to(device)
+                    G_ema_tmp.load_state_dict(snapshot_data['G_ema'])
+                    demof(generator=G_ema_tmp, filename='fakes{:06d}.png'.format(cur_nimg // 1000))
+                    del G_ema_tmp
                 if (RANK == 0) and flag_better:
-                    demof(generator=snapshot_data['G_ema'], filename='fakes_best.png')
+                    G_ema_tmp = get_model()(cfgm_g).eval().requires_grad_(False).to(device)
+                    G_ema_tmp.load_state_dict(snapshot_data['G_ema'])
+                    demof(generator=G_ema_tmp, filename='fakes_best.png')
+                    del G_ema_tmp
 
                 #########################
                 # Save network snapshot #
@@ -564,33 +579,31 @@ class train_stage:
                                 and (done or cur_tick % snapshot_ticks == 0)
 
                 if snapshot_cond and (snapshot_data is None):
-                    snapshot_data = {}
+                    snapshot_data_checkpoint = {}
                     for name, module in [('G', G),
                                          ('D', D),
                                          ('G_ema', G_ema)]:
                         if module is not None:
                             if cfge.gpu_count > 1:
                                 self.check_ddp_consistency(module)
-                            module = copy.deepcopy(module).eval().requires_grad_(False).cpu()
-                        snapshot_data[name] = module
-                        del module  # conserve memory
+                            snapshot_data_checkpoint[name] = module.state_dict()
+                        else:
+                            snapshot_data_checkpoint[name] = None
                 elif snapshot_cond:
-                    for name in snapshot_data:
-                        if snapshot_data[name] is not None:
-                            snapshot_data[name] = snapshot_data[name].cpu()
+                    snapshot_data_checkpoint = snapshot_data
 
                 if (RANK == 0) and snapshot_cond:
                     check_and_create_dir(osp.join(cfgt.log_dir, 'weight'))
                     snapshot_pkl = os.path.join(cfgt.log_dir, 'weight', f'network-snapshot-{cur_nimg // 1000:06d}.pkl')
                     with open(snapshot_pkl, 'wb') as f:
-                        pickle.dump(snapshot_data, f)
+                        pickle.dump(snapshot_data_checkpoint, f)
                 if (RANK == 0) and flag_better:
                     check_and_create_dir(osp.join(cfgt.log_dir, 'weight'))
                     snapshot_pkl = os.path.join(cfgt.log_dir, 'weight', f'network-snapshot-best.pkl')
                     with open(snapshot_pkl, 'wb') as f:
-                        pickle.dump(snapshot_data, f)
+                        pickle.dump(snapshot_data_checkpoint, f)
 
-                del snapshot_data  # conserve memory
+                del snapshot_data, snapshot_data_checkpoint  # conserve memory
 
                 ######################
                 # Collect statistics #
