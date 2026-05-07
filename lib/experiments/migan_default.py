@@ -1,4 +1,4 @@
-import copy
+﻿import copy
 import json
 import os
 import os.path as osp
@@ -530,6 +530,10 @@ class train_stage:
                     if RANK == 0:
                         metric_main.report_metric(result_dict, run_dir=cfgt.log_dir)
                     flag_better = self.is_better(result_dict)
+
+                    # Free snapshot_data after metrics evaluation to avoid GPU memory issues
+                    del snapshot_data
+                    snapshot_data = None
 
                 #######################
                 # Save image snapshot #

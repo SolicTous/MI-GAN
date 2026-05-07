@@ -52,7 +52,7 @@ def process(img, mpath, input_dict, output, sig, Scale, crop_dis=8):
     pics = []
 
     AIMODEL = ModelLoader(model_filepath=mpath, inputs=input_dict,
-                          output=output, gpu_use = True, dml=True)
+                          output=output, gpu_use=False, dml=False)
 
     op_time = 0
     op_cout = 0
@@ -78,17 +78,36 @@ def process(img, mpath, input_dict, output, sig, Scale, crop_dis=8):
     return out
 
 
-def resize(image, max_size, inter = cv2.INTER_CUBIC):
-    w, h = image.shape[1], image.shape[0]
+def prop_resize(image, max_size, interpolation=cv2.INTER_CUBIC):
+    # Пропорционально уменьшает изображение, чтобы оно вписалось в max_size×max_size.
+    h, w = image.shape[:2]  # Лучше сразу в порядке (H, W) для читаемости
+    # Проверяем, нужно ли уменьшать
     if w > max_size or h > max_size:
-        resize_ratio = max_size / w if w > h else max_size / h
-        image = cv2.resize(image, (int(h * resize_ratio), int(w * resize_ratio)), inter)
+        # Коэффициент масштабируем по БОЛЬШЕЙ стороне, чтобы вписать в квадрат
+        scale = max_size / max(w, h)
+        new_w = int(w * scale)
+        new_h = int(h * scale)
+        # cv2.resize ожидает (width, height)!
+        image = cv2.resize(image, (new_w, new_h), interpolation=interpolation)
     return image
 
+    # borderType - Flag defining what kind of border to be added. It can be following types:
+    # cv.BORDER_CONSTANT - Adds a constant colored border. The value should be given as next argument.
+    # cv.BORDER_REFLECT - Border will be mirror reflection of the border elements, like this : fedcba|abcdefgh|hgfedcb
+    # cv.BORDER_REFLECT_101 or cv.BORDER_DEFAULT - Same as above, but with a slight change, like this : gfedcb|abcdefgh|gfedcba
+    # cv.BORDER_REPLICATE - Last element is replicated throughout, like this: aaaaaa|abcdefgh|hhhhhhh
+    # cv.BORDER_WRAP - Can't explain, it will look like this : cdefgh|abcdefgh|abcdefg
 
-def preprocess(img: Image, mask: Image, resolution: int) -> torch.Tensor:
-    img = cv2.resize(img, (resolution, resolution), cv2.INTER_CUBIC)
-    mask = cv2.resize(mask, (resolution, resolution), cv2.INTER_NEAREST)
+def preprocess(img, mask, resolution, pad = False):
+    if pad:
+        img = prop_resize(img, resolution)
+        mask = prop_resize(mask, resolution, interpolation = cv2.INTER_NEAREST)
+        img, img_pad = pad_to_square(img, target_size=resolution, mode=cv2.BORDER_REFLECT_101)
+        mask, mask_pad = pad_to_square(mask, target_size=resolution, mode=cv2.BORDER_CONSTANT, color=0)
+    else:
+        img_pad = mask_pad = None
+        img = cv2.resize(img, (resolution, resolution), cv2.INTER_CUBIC)
+        mask = cv2.resize(mask, (resolution, resolution), cv2.INTER_NEAREST)
     mask = mask[:, :, np.newaxis] // 255
     img = torch.Tensor(img).float() * 2 / 255 - 1
     mask = torch.Tensor(mask).float()
@@ -103,7 +122,7 @@ def preprocess(img: Image, mask: Image, resolution: int) -> torch.Tensor:
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
 
-    return x
+    return x, img_pad, mask_pad
 
 
 def get_args():
@@ -135,11 +154,47 @@ def check_borders(bbox, init_image):
     return bbox
 
 
+def pad_to_square(image, target_size=512, mode=cv2.BORDER_CONSTANT, color = 0):
+    """
+    Дополняет изображение до квадрата target_size×target_size.
+    Возвращает: (padded_image, padding_info)
+    """
+    h, w = image.shape[:2]
+    delta_w = target_size - w
+    delta_h = target_size - h
+
+    top, bottom = delta_h // 2, delta_h - (delta_h // 2)
+    left, right = delta_w // 2, delta_w - (delta_w // 2)
+
+    padded = cv2.copyMakeBorder(
+        image, top, bottom, left, right, mode, value=[color, color, color])
+
+    # Сохраняем метаданные для обратного вырезания
+    padding_info = {
+        'top': top,
+        'left': left,
+        'orig_h': h,
+        'orig_w': w
+    }
+    return padded, padding_info
+
+def unpad_image(padded_image, padding_info):
+    """
+    Вырезает оригинальное изображение из дополненного.
+    """
+    top = padding_info['top']
+    left = padding_info['left']
+    h = padding_info['orig_h']
+    w = padding_info['orig_w']
+    if len(padded_image.shape) == 3:
+        return padded_image[top:top+h, left:left+w]
+    else:
+        return padded_image[:, top:top + h, left:left + w]
+
+
 def main():
     args = get_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
-
-    RECT_MODE = True
 
     cuda = False
     if args.device == "cuda":
@@ -182,8 +237,8 @@ def main():
     import onnxruntime as ort
     onnx_path = r"D:\Models\Actual\MIGAN\migan\migan_512_places2.onnx"
     model_onnx = ort.InferenceSession(onnx_path,
-                                      # providers=[('DmlExecutionProvider', {'device_id': (0), })])
-                                      providers=[('CPUExecutionProvider')])
+                                      providers=[('DmlExecutionProvider', {'device_id': (0), })])
+                                      # providers=[('CPUExecutionProvider')])
 
     for img_path in tqdm(img_paths):
         idx += 1
@@ -204,15 +259,24 @@ def main():
             contours, _ = cv2.findContours(npmask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
             npmask = cv2.cvtColor(npmask, cv2.COLOR_GRAY2BGR)
+
+            pad = True
             for cnt in contours:
                 x, y, w, h = cv2.boundingRect(cnt)
+
                 e_bbox = [x - int(w * 0.25), y - int(h * 0.25), x + int(w * 1.25), y + int(h * 1.25)]
                 coords = check_borders(e_bbox, npmask)
                 Regions.append(coords)
 
             for bbox in Regions:
+
                 img_work = img[bbox[1]:bbox[3], bbox[0]:bbox[2], :]
                 mask_work = mask[bbox[1]:bbox[3], bbox[0]:bbox[2]]
+                im_w_shape = (img_work.shape[1], img_work.shape[0])
+
+                x, y = img_work.shape[:2]
+                if not(x / y > 3 or y / x > 3):
+                    pad = False
 
                 # расширение маски с небольшим адаптивным ядром
                 kern = round(max(mask_work.shape[:2])/512 * 5)
@@ -221,19 +285,19 @@ def main():
 
                 # блюр после половинного сужения (плавный переход м/у исходной границей и расширенной)
                 # применяется только к итоговому изображению, не идёт на вход нейросети
-                eroded = cv2.erode(mask_nb, np.ones((kern//2, kern//2), np.uint8), iterations=2)
-                bc = int(25 * max(mask_work.shape[:2]) / 512) // 3 * 3
+                dilate_kernel = np.ones((kern//2, kern//2), np.uint8)
+                mask_blur = cv2.dilate(mask_work.copy(), dilate_kernel, iterations=5)
+                bc = int(15 * max(mask_blur.shape[:2]) / 512) // 3 * 3
                 if bc % 2 == 0:
                     bc += 1
-                mask_blur = cv2.GaussianBlur(eroded, (bc, bc) if bc != 0 else (3, 3), 0)
+                mask_blur = cv2.GaussianBlur(mask_blur, (bc, bc) if bc != 0 else (3, 3), 0)
 
                 mask_bi = mask_nb.copy()
                 mask_bi[mask_bi > 0] = 255
                 if args.invert_mask:
                     mask_bi = 255 - mask_bi.copy()
 
-
-                x = preprocess(img_work.copy(), mask_bi, resolution)
+                x, img_pad, mask_pad = preprocess(img_work.copy(), mask_bi, resolution, pad = pad)
                 if cuda:
                     x = x.to("cuda")
                 with torch.no_grad():
@@ -256,13 +320,17 @@ def main():
                 result_image = (result_image * 0.5 + 0.5).clamp(0, 1) * 255
                 result_image = result_image.to(torch.uint8).permute(1, 2, 0).detach().to("cpu").numpy()
 
-                SRx4 = process(result_image, r"D:\Models\AiEditor\onnx\sr\PhotoSRx4.onnx",
-                                          {'x:0': (None, None, None, 3)}, 'Identity', sig=7, Scale=4)
-                SRx4 = cv2.resize(SRx4, dsize=(img_work.shape[1], img_work.shape[0]),
-                                             interpolation=cv2.INTER_CUBIC)
+                if pad:
+                    # cv2.imshow('result_image', cv2.cvtColor(result_image, cv2.COLOR_BGR2RGB))
+                    # cv2.waitKey(0)
+                    # cv2.destroyAllWindows()
+                    result_image = unpad_image(result_image, img_pad)
 
-                result_image_bic = cv2.resize(result_image, dsize=(img_work.shape[1], img_work.shape[0]),
-                                              interpolation=cv2.INTER_CUBIC)
+                SRx4 = process(result_image, r"D:\Models\AiEditor\onnx\sr\UniOptx4.onnx",
+                                          {'x:0': (None, None, None, 3)}, 'Identity', sig=0, Scale=4)
+                SRx4 = cv2.resize(SRx4, dsize=im_w_shape, interpolation=cv2.INTER_CUBIC)
+
+                result_image_bic = cv2.resize(result_image, dsize=im_w_shape, interpolation=cv2.INTER_CUBIC)
 
 
                 mask_blur = mask_blur[:, :, np.newaxis] / 255
