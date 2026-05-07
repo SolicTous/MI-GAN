@@ -63,16 +63,16 @@ train:
     eps: 1.e-08
   d_reg_interval: 16
 
-  total_kimg: 10000
-  ema_kimg: 20
+  total_kimg: 5000 # 25000
+  ema_kimg: 10 # 20
   ema_rampup: null
-  kimg_per_tick: 4
+  kimg_per_tick: 2 # 4
   snapshot:
     evaluate: 200 # 25
     image: 200 # 100
     checkpoint: 200 # 100
   metrics:
-    - fid100_full_inpainting
+    - fid1k_full_inpainting
 
   save_init_model: false
   save_code: true
