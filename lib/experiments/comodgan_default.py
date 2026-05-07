@@ -613,7 +613,9 @@ class train_stage:
 
                 if snapshot_pkl_cond:
                     # Create snapshot_data with G_ema on CPU for saving
-                    snapshot_data = dict(G_ema=G_ema.cpu())
+                    # Use deepcopy to avoid moving the original G_ema to CPU
+                    G_ema_cpu = copy.deepcopy(G_ema).cpu()
+                    snapshot_data = dict(G_ema=G_ema_cpu)
                     # Move modules to CPU before saving
                     for name in snapshot_data:
                         if snapshot_data[name] is not None:
@@ -622,10 +624,13 @@ class train_stage:
                     check_and_create_dir(osp.join(cfgt.log_dir, 'weight'))
                     snapshot_pkl = os.path.join(cfgt.log_dir, 'weight', f'network-snapshot-{cur_nimg//1000:06d}.pkl')
                     with open(snapshot_pkl, 'wb') as f:
-                        pickle.dump(snapshot_data, f)                        
+                        pickle.dump(snapshot_data, f)
+                    del G_ema_cpu  # Free memory
                 if flag_better:
                     # Create snapshot_data with G_ema on CPU for saving
-                    snapshot_data = dict(G_ema=G_ema.cpu())
+                    # Use deepcopy to avoid moving the original G_ema to CPU
+                    G_ema_cpu = copy.deepcopy(G_ema).cpu()
+                    snapshot_data = dict(G_ema=G_ema_cpu)
                     # Move modules to CPU before saving
                     for name in snapshot_data:
                         if snapshot_data[name] is not None:
@@ -635,6 +640,7 @@ class train_stage:
                     snapshot_pkl = os.path.join(cfgt.log_dir, 'weight', f'network-snapshot-best.pkl')
                     with open(snapshot_pkl, 'wb') as f:
                         pickle.dump(snapshot_data, f)
+                    del G_ema_cpu  # Free memory
 
                 del snapshot_data # conserve memory
 
