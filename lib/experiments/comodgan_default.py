@@ -360,7 +360,7 @@ class train_stage:
 
         G = get_model()(cfgm_g).train().requires_grad_(False).to(device)
         D = get_model()(cfgm_d).train().requires_grad_(False).to(device)
-        G_ema = copy.deepcopy(G).eval()
+        G_ema = copy.deepcopy(G).eval().to(device)
 
         # Resume from existing pickle.
         if isresume and (RANK == 0):
@@ -926,7 +926,7 @@ class eval_stage:
 
         G = get_model()(cfgm_g).eval().requires_grad_(False).to(device)
         D = get_model()(cfgm_d).eval().requires_grad_(False).to(device)
-        G_ema = copy.deepcopy(G).eval()
+        G_ema = copy.deepcopy(G).eval().to(device)
 
         # Resume from existing pickle.
         resume_pkl = getattr(cfgv, 'pretrained_pkl', None)
