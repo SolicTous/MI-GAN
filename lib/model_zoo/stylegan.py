@@ -83,8 +83,8 @@ class dense(nn.Module):
             in_features, out_features, bias, activation, lr_multi)
 
     def forward(self, x):
-        w = self.weight * self.weight_gain
-        b = self.bias
+        w = (self.weight * self.weight_gain).to(x.dtype).to(x.device)
+        b = self.bias.to(x.dtype).to(x.device) if self.bias is not None else None
         if b is not None:
             if self.bias_gain != 1:
                 b = b * self.bias_gain
