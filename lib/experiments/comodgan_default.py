@@ -597,15 +597,11 @@ class train_stage:
                 if (RANK == 0) and snapshot_cond:
                     print_log('Save image snapshot...')
                     with torch.no_grad():
-                        demof(generator=snapshot_data['G_ema'], filename='fakes{:06d}.png'.format(cur_nimg//1000), device=device)
-                    # Move G_ema to CPU after generating images
-                    snapshot_data['G_ema'] = snapshot_data['G_ema'].cpu()
+                        demof(generator=G_ema, filename='fakes{:06d}.png'.format(cur_nimg//1000), device=device)
                 if (RANK == 0) and flag_better:
                     print_log('Save best image snapshot...')
                     with torch.no_grad():
-                        demof(generator=snapshot_data['G_ema'], filename='fakes_best.png', device=device)
-                    # Move G_ema to CPU after generating images (if not already done)
-                    snapshot_data['G_ema'] = snapshot_data['G_ema'].cpu()
+                        demof(generator=G_ema, filename='fakes_best.png', device=device)
 
                 #########################
                 # Save network snapshot #
@@ -616,6 +612,8 @@ class train_stage:
                     and (done or cur_tick % snapshot_ticks == 0)
 
                 if snapshot_pkl_cond:
+                    # Create snapshot_data with G_ema on CPU for saving
+                    snapshot_data = dict(G_ema=G_ema.cpu())
                     # Move modules to CPU before saving
                     for name in snapshot_data:
                         if snapshot_data[name] is not None:
@@ -626,6 +624,8 @@ class train_stage:
                     with open(snapshot_pkl, 'wb') as f:
                         pickle.dump(snapshot_data, f)                        
                 if flag_better:
+                    # Create snapshot_data with G_ema on CPU for saving
+                    snapshot_data = dict(G_ema=G_ema.cpu())
                     # Move modules to CPU before saving
                     for name in snapshot_data:
                         if snapshot_data[name] is not None:

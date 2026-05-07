@@ -558,10 +558,10 @@ class train_stage:
                 if (RANK == 0) and snapshot_cond:
                     print_log('Save image snapshot...')
                     with torch.no_grad():
-                        demof(generator=snapshot_data['G_ema'], filename='fakes{:06d}.png'.format(cur_nimg // 1000))
+                        demof(generator=G_ema, filename='fakes{:06d}.png'.format(cur_nimg // 1000))
                 if (RANK == 0) and flag_better:
                     with torch.no_grad():
-                        demof(generator=snapshot_data['G_ema'], filename='fakes_best.png')
+                        demof(generator=G_ema, filename='fakes_best.png')
 
                 #########################
                 # Save network snapshot #
@@ -571,7 +571,7 @@ class train_stage:
                 snapshot_cond = (snapshot_ticks is not None) \
                                 and (done or cur_tick % snapshot_ticks == 0)
 
-                if snapshot_cond and (snapshot_data is None):
+                if snapshot_cond:
                     snapshot_data = {}
                     for name, module in [('G', G),
                                          ('D', D),
@@ -582,10 +582,6 @@ class train_stage:
                             module = copy.deepcopy(module).eval().requires_grad_(False).cpu()
                         snapshot_data[name] = module
                         del module  # conserve memory
-                elif snapshot_cond:
-                    for name in snapshot_data:
-                        if snapshot_data[name] is not None:
-                            snapshot_data[name] = snapshot_data[name].cpu()
 
                 if (RANK == 0) and snapshot_cond:
                     check_and_create_dir(osp.join(cfgt.log_dir, 'weight'))
@@ -593,12 +589,24 @@ class train_stage:
                     with open(snapshot_pkl, 'wb') as f:
                         pickle.dump(snapshot_data, f)
                 if (RANK == 0) and flag_better:
+                    snapshot_data_best = {}
+                    for name, module in [('G', G),
+                                         ('D', D),
+                                         ('G_ema', G_ema)]:
+                        if module is not None:
+                            if cfge.gpu_count > 1:
+                                self.check_ddp_consistency(module)
+                            module = copy.deepcopy(module).eval().requires_grad_(False).cpu()
+                        snapshot_data_best[name] = module
+                        del module  # conserve memory
+                    
                     check_and_create_dir(osp.join(cfgt.log_dir, 'weight'))
                     snapshot_pkl = os.path.join(cfgt.log_dir, 'weight', f'network-snapshot-best.pkl')
                     with open(snapshot_pkl, 'wb') as f:
-                        pickle.dump(snapshot_data, f)
+                        pickle.dump(snapshot_data_best, f)
 
-                del snapshot_data  # conserve memory
+                if snapshot_cond:
+                    del snapshot_data  # conserve memory
 
                 ######################
                 # Collect statistics #
