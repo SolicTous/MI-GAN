@@ -53,20 +53,31 @@ class draw_functor:
         generator = kwargs['generator']
         filename = kwargs['filename'] if 'filename' in kwargs else 'demo.png'
         isinit = kwargs['isinit'] if 'isinit' in kwargs else False
+        device = kwargs.get('device', torch.device('cuda', RANK) if RANK >= 0 else torch.device('cpu'))
 
         generator.eval()
         with torch.no_grad():
             if 'input' in kwargs:
-                images = [generator(**input_i).cpu() for input_i in kwargs['input']]
+                # Move input to device before passing to generator
+                input_list = []
+                for input_i in kwargs['input']:
+                    input_i_device = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in input_i.items()}
+                    input_list.append(input_i_device)
+                images = [generator(**input_i).cpu() for input_i in input_list]
                 # recover grid_real and grid_mask from overrided input
-                grid_real = torch.cat([input_i['x'][:, 1:] for input_i in kwargs['input']])
-                grid_mask = torch.cat([input_i['x'][:, 0:1] for input_i in kwargs['input']])+0.5
+                grid_real = torch.cat([input_i['x'][:, 1:] for input_i in input_list])
+                grid_mask = torch.cat([input_i['x'][:, 0:1] for input_i in input_list])+0.5
                 grid_real, grid_mask = grid_real.detach().to('cpu'), grid_mask.detach().to('cpu')
             elif self.input is not None:
-                images = [generator(**input_i).cpu() for input_i in self.input]
+                # Move saved input to device before passing to generator
+                input_list = []
+                for input_i in self.input:
+                    input_i_device = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in input_i.items()}
+                    input_list.append(input_i_device)
+                images = [generator(**input_i).cpu() for input_i in input_list]
                 # recover grid_real and grid_mask from saved input
-                grid_real = torch.cat([input_i['x'][:, 1:] for input_i in self.input])
-                grid_mask = torch.cat([input_i['x'][:, 0:1] for input_i in self.input])+0.5
+                grid_real = torch.cat([input_i['x'][:, 1:] for input_i in input_list])
+                grid_mask = torch.cat([input_i['x'][:, 0:1] for input_i in input_list])+0.5
                 grid_real, grid_mask = grid_real.detach().to('cpu'), grid_mask.detach().to('cpu')
             else:
                 evalset = kwargs['evalset']
@@ -83,7 +94,7 @@ class draw_functor:
                 grid_real_erased = grid_real * grid_mask
                 grid_x = torch.cat([grid_mask-0.5, grid_real_erased], axis=1)
                 if RANK >= 0:
-                    grid_z, grid_c, grid_x = grid_z.to(RANK), grid_c.to(RANK), grid_x.to(RANK)
+                    grid_z, grid_c, grid_x = grid_z.to(device), grid_c.to(device), grid_x.to(device)
                 grid_z = grid_z.split(self.batch_gpu)
                 grid_c = grid_c.split(self.batch_gpu)
                 grid_x = grid_x.split(self.batch_gpu)
@@ -570,7 +581,7 @@ class train_stage:
                 snapshot_cond = (snapshot_ticks is not None) \
                     and (done or cur_tick % snapshot_ticks == 0)
 
-                if (snapshot_cond or flag_better) and (snapshot_data is None):
+                if (snapshot_cond or flag_better):
                     snapshot_data = {}
                     for name, module in [('G', G), 
                                          ('D', D), 
@@ -579,49 +590,47 @@ class train_stage:
                         if module is not None:
                             if cfge.gpu_count > 1:
                                 self.check_ddp_consistency(module)
-                            module = copy.deepcopy(module).eval().requires_grad_(False).cpu()
+                            module = copy.deepcopy(module).eval().requires_grad_(False)
                         snapshot_data[name] = module
                         del module # conserve memory
 
                 if (RANK == 0) and snapshot_cond:
                     print_log('Save image snapshot...')
                     with torch.no_grad():
-                        demof(generator=snapshot_data['G_ema'], filename='fakes{:06d}.png'.format(cur_nimg//1000))
+                        demof(generator=snapshot_data['G_ema'], filename='fakes{:06d}.png'.format(cur_nimg//1000), device=device)
+                    # Move G_ema to CPU after generating images
+                    snapshot_data['G_ema'] = snapshot_data['G_ema'].cpu()
                 if (RANK == 0) and flag_better:
+                    print_log('Save best image snapshot...')
                     with torch.no_grad():
-                        demof(generator=snapshot_data['G_ema'], filename='fakes_best.png')
+                        demof(generator=snapshot_data['G_ema'], filename='fakes_best.png', device=device)
+                    # Move G_ema to CPU after generating images (if not already done)
+                    snapshot_data['G_ema'] = snapshot_data['G_ema'].cpu()
 
                 #########################
                 # Save network snapshot #
                 #########################
                 
                 snapshot_ticks = getattr(cfgt.snapshot, 'checkpoint', None)
-                snapshot_cond = (snapshot_ticks is not None) \
+                snapshot_pkl_cond = (snapshot_ticks is not None) \
                     and (done or cur_tick % snapshot_ticks == 0)
 
-                if snapshot_cond and (snapshot_data is None):
-                    snapshot_data = {}
-                    for name, module in [('G', G), 
-                                         ('D', D), 
-                                         ('G_ema', G_ema), 
-                                         ('augment_pipe', augment_pipe)]:
-                        if module is not None:
-                            if cfge.gpu_count > 1:
-                                self.check_ddp_consistency(module)
-                            module = copy.deepcopy(module).eval().requires_grad_(False).cpu()
-                        snapshot_data[name] = module
-                        del module # conserve memory
-                elif snapshot_cond:
+                if snapshot_pkl_cond:
+                    # Move modules to CPU before saving
                     for name in snapshot_data:
                         if snapshot_data[name] is not None:
                             snapshot_data[name] = snapshot_data[name].cpu()
-
-                if (RANK == 0) and snapshot_cond:
+                    
                     check_and_create_dir(osp.join(cfgt.log_dir, 'weight'))
                     snapshot_pkl = os.path.join(cfgt.log_dir, 'weight', f'network-snapshot-{cur_nimg//1000:06d}.pkl')
                     with open(snapshot_pkl, 'wb') as f:
                         pickle.dump(snapshot_data, f)                        
-                if (RANK == 0) and flag_better:
+                if flag_better:
+                    # Move modules to CPU before saving
+                    for name in snapshot_data:
+                        if snapshot_data[name] is not None:
+                            snapshot_data[name] = snapshot_data[name].cpu()
+                    
                     check_and_create_dir(osp.join(cfgt.log_dir, 'weight'))
                     snapshot_pkl = os.path.join(cfgt.log_dir, 'weight', f'network-snapshot-best.pkl')
                     with open(snapshot_pkl, 'wb') as f:
