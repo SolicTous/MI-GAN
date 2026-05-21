@@ -52,7 +52,7 @@ def process(img, mpath, input_dict, output, sig, Scale, crop_dis=8):
     pics = []
 
     AIMODEL = ModelLoader(model_filepath=mpath, inputs=input_dict,
-                          output=output, gpu_use=False, dml=False)
+                          output=output, gpu_use=True, dml=True)
 
     op_time = 0
     op_cout = 0
@@ -237,12 +237,14 @@ def main():
     import onnxruntime as ort
     onnx_path = r"D:\Models\Actual\MIGAN\migan\migan_512_places2.onnx"
     model_onnx = ort.InferenceSession(onnx_path,
-                                      providers=[('DmlExecutionProvider', {'device_id': (0), })])
-                                      # providers=[('CPUExecutionProvider')])
+                                      # providers=[('DmlExecutionProvider', {'device_id': (0), })])
+                                      providers=[('CPUExecutionProvider')])
 
     for img_path in tqdm(img_paths):
         idx += 1
         if idx % 100 == 0:
+            if idx != 2500:
+                continue
             mask_path = os.path.join(args.masks_dir, "".join(os.path.basename(img_path).split('.')[:-1]) + ".png")
 
             img = cv2.imread(img_path)
@@ -285,9 +287,9 @@ def main():
 
                 # блюр после половинного сужения (плавный переход м/у исходной границей и расширенной)
                 # применяется только к итоговому изображению, не идёт на вход нейросети
-                dilate_kernel = np.ones((kern//2, kern//2), np.uint8)
+                dilate_kernel = np.ones((kern*2//3, kern*2//3), np.uint8)
                 mask_blur = cv2.dilate(mask_work.copy(), dilate_kernel, iterations=5)
-                bc = int(15 * max(mask_blur.shape[:2]) / 512) // 3 * 3
+                bc = int(25 * max(mask_blur.shape[:2]) / 512) // 3 * 3
                 if bc % 2 == 0:
                     bc += 1
                 mask_blur = cv2.GaussianBlur(mask_blur, (bc, bc) if bc != 0 else (3, 3), 0)
