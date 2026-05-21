@@ -10,6 +10,7 @@ import numpy as np
 import PIL.Image
 import psutil
 import torch
+import torch.distributed as dist
 
 from torch_utils import misc, training_stats
 from torch_utils.ops import conv2d_gradfix, grid_sample_gradfix
@@ -572,6 +573,10 @@ class train_stage:
                     # Free snapshot_data after metrics evaluation to avoid GPU memory issues
                     del snapshot_data
                     snapshot_data = None
+                    
+                    # Синхронизация после оценки метрик
+                    if dist.is_initialized() and dist.get_world_size() > 1:
+                        dist.barrier()
 
                 #######################
                 # Save image snapshot #
@@ -602,6 +607,10 @@ class train_stage:
                     print_log('Save best image snapshot...')
                     with torch.no_grad():
                         demof(generator=G_ema, filename='fakes_best.png', device=device)
+                
+                # Синхронизация после сохранения изображений
+                if dist.is_initialized() and dist.get_world_size() > 1:
+                    dist.barrier()
 
                 #########################
                 # Save network snapshot #
@@ -643,6 +652,10 @@ class train_stage:
                     del G_ema_cpu  # Free memory
 
                 del snapshot_data # conserve memory
+                
+                # Синхронизация после сохранения network snapshot
+                if dist.is_initialized() and dist.get_world_size() > 1:
+                    dist.barrier()
 
                 ######################
                 # Collect statistics #

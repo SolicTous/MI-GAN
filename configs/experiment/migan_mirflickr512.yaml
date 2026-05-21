@@ -35,8 +35,8 @@ train:
 
   batch_size_per_gpu: null
   batch_size: 2
-  dataset_num_workers_per_gpu: 4
-  dataset_num_workers: 4
+  dataset_num_workers_per_gpu: 0  # 4 - Установлено в 0 для Windows (избегает проблем с multiprocessing)
+  dataset_num_workers: 0
   skip_partial_batch: true
 
   image_level_kd_kwargs:
@@ -68,9 +68,9 @@ train:
   ema_rampup: null
   kimg_per_tick: 2 # 4
   snapshot:
-    evaluate: 200 # 25
-    image: 200 # 100
-    checkpoint: 200 # 100
+    evaluate: 500 # 200 - Увеличено для ускорения обучения (оценка метрик каждые 500 кimg вместо 200)
+    image: 100 # 200 - Сохранение изображений каждые 100 кimg
+    checkpoint: 500 # 200 - Чекпоинты каждые 500 кimg
   metrics:
     - fid300_full_inpainting
 
@@ -81,5 +81,5 @@ eval:
   dataset: DATASET(mirflickr_val512_inpainting)
   batch_size_per_gpu: null
   batch_size: 4
-  dataset_num_workers_per_gpu: 4
-  dataset_num_workers: 4
+  dataset_num_workers_per_gpu: 0  # 4 - Установлено в 0 для Windows (избегает проблем с multiprocessing)
+  dataset_num_workers: 0
