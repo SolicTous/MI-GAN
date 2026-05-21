@@ -49,13 +49,27 @@ class SingleProcessExecutor(exec_container):
                     world_size=cfg.env.gpu_count,
                 )
             else:
-                # Для одной GPU инициализируем процесс группу с world_size=1
-                # Используем TCP init_method для надёжности
+                # Для одной GPU на Windows используем файловый метод инициализации
+                # Это обходит проблемы с IPv6/IPv4 и сокетами на Windows
+                import tempfile
+                import platform
+                
+                if platform.system() == 'Windows':
+                    # Создаем временный файл для инициализации
+                    temp_dir = tempfile.gettempdir()
+                    init_file = os.path.join(temp_dir, f'dist_init_{os.getpid()}.txt')
+                    init_method = f'file:///{init_file}'
+                    print(f"Используем файловый метод инициализации: {init_method}")
+                else:
+                    # На Linux/Mac используем TCP
+                    init_method = 'tcp://127.0.0.1:29500'
+                
                 dist.init_process_group(
                     backend=cfg.env.dist_backend,
-                    init_method='tcp://localhost:29500',
+                    init_method=init_method,
                     rank=0,
                     world_size=1,
+                    timeout=torch.timedelta(minutes=5)  # Увеличенный таймаут для Windows
                 )
 
         # Установка random seed
