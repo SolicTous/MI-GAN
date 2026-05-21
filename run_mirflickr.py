@@ -5,13 +5,16 @@
 Использует gloo бэкенд (работает на Windows) и однопоточный режим для 1 GPU.
 """
 import os
-os.environ["USE_LIBUV"] = "0"
+os.environ["USE_LIBUV"] = "0"  # Уже есть в вашем коде — хорошо!
+os.environ["TORCH_DISTRIBUTED_DEBUG"] = "INFO"  # Для отладки
 
 import subprocess
 import sys
 import torch
 import numpy as np
 import timeit
+
+torch.backends.cudnn.benchmark = True
 
 from lib.cfg_helper import get_command_line_args, cfg_initiates
 from lib.cfg_holder import cfg_unique_holder as cfguh
